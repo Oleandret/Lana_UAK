@@ -1,8 +1,9 @@
 // Autentisering: Microsoft 365 SSO (Entra ID / Azure AD) via OpenID Connect.
 // Faller tilbake til enkel utvikler-innlogging hvis Azure-variabler ikke er satt.
 
+const crypto = require('crypto');
 const { Issuer, generators } = require('openid-client');
-const { getOrCreateUser, userByApiKey } = require('./db');
+const { getOrCreateUser, userByApiKey, db } = require('./db');
 
 const TENANT = process.env.AZURE_TENANT_ID || '';
 const CLIENT_ID = process.env.AZURE_CLIENT_ID || '';
@@ -14,6 +15,13 @@ const ALLOWED_DOMAINS = (process.env.ALLOWED_DOMAINS || 'byggkon.no')
   .filter(Boolean);
 
 const ssoConfigured = Boolean(TENANT && CLIENT_ID && CLIENT_SECRET);
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+
+function safeEqual(a, b) {
+  const ba = Buffer.from(String(a));
+  const bb = Buffer.from(String(b));
+  return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
+}
 
 let clientPromise = null;
 function getClient() {
@@ -42,10 +50,25 @@ function emailAllowed(email) {
 function setupAuthRoutes(app) {
   app.get('/login', async (req, res) => {
     if (req.session.userId) return res.redirect('/');
-    if (!ssoConfigured) {
-      return res.render('login', { sso: false, error: req.query.error || '' });
+    return res.render('login', {
+      sso: ssoConfigured,
+      adminLogin: Boolean(ADMIN_PASSWORD),
+      error: req.query.error || ''
+    });
+  });
+
+  // Ekstra innlogging: kun admin-passord (settes med ADMIN_PASSWORD).
+  app.post('/auth/admin', (req, res) => {
+    if (!ADMIN_PASSWORD) return res.status(403).send('Admin-innlogging er ikke konfigurert.');
+    if (!safeEqual(req.body.password || '', ADMIN_PASSWORD)) {
+      return res.redirect('/login?error=' + encodeURIComponent('Feil admin-passord.'));
     }
-    return res.render('login', { sso: true, error: req.query.error || '' });
+    const user = getOrCreateUser('admin@byggkon.no', 'Administrator');
+    if (user.role !== 'admin') {
+      db.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(user.id);
+    }
+    req.session.userId = user.id;
+    res.redirect('/');
   });
 
   app.get('/auth/microsoft', async (req, res, next) => {

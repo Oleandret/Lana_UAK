@@ -8,7 +8,14 @@
     <% if (sso) { %>
       <a class="btn primary block" href="/auth/microsoft">Logg inn med Microsoft 365</a>
       <p class="muted small">Bruk din Byggkon-konto.</p>
-    <% } else { %>
+    <% } %>
+    <% if (adminLogin) { %>
+      <form method="post" action="/auth/admin">
+        <label>Admin-passord <input type="password" name="password" required></label>
+        <button class="btn <%= sso ? '' : 'primary' %> block">Logg inn som administrator</button>
+      </form>
+    <% } %>
+    <% if (!sso) { %>
       <form method="post" action="/auth/dev">
         <label>E-post <input type="email" name="email" required placeholder="navn@byggkon.no"></label>
         <label>Navn <input type="text" name="name" placeholder="Fullt navn"></label>

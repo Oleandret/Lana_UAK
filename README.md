@@ -33,6 +33,8 @@ Uten Azure-variabler er utviklings-innlogging aktiv (kun e-post). Første bruker
 5. Sett i Railway: `AZURE_TENANT_ID` (Directory ID), `AZURE_CLIENT_ID` (Application ID), `AZURE_CLIENT_SECRET`.
 6. `ALLOWED_DOMAINS=byggkon.no` begrenser innlogging til Byggkon-kontoer.
 
+I tillegg kan `ADMIN_PASSWORD` settes for en egen administrator-innlogging med kun passord (vises på innloggingssiden når variabelen er satt). Brukeren logges inn som `admin@byggkon.no` med admin-rolle. Bruk et langt, unikt passord.
+
 ## Koble til Claude
 
 Hver bruker har sin personlige API-nøkkel under «Innstillinger / Claude» på nettsiden – der ligger også ferdig konfigurasjon til å lime inn.
