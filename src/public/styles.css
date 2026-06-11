@@ -125,6 +125,10 @@ dialog::backdrop { background: rgba(21,49,75,.4); }
 .dialog-form .check { display: inline-flex; align-items: center; gap: 6px; margin: 4px 14px 4px 0; color: var(--text); }
 .dialog-form .check input { width: auto; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tripletex-import { background: #f4f4f6; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.import-row { display: flex; gap: 8px; margin-top: 3px; }
+.import-row input { flex: 1; }
+#ttResults { width: 100%; margin-top: 8px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; padding: 4px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
 
 .login-wrap { min-height: 90vh; display: flex; align-items: center; justify-content: center; }

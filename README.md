@@ -39,6 +39,10 @@ ADMIN_PASSWORD=dittpassord npm start
 
 I tillegg kan `ADMIN_PASSWORD` settes for en egen administrator-innlogging med kun passord (vises på innloggingssiden når variabelen er satt). Brukeren logges inn som `admin@byggkon.no` med admin-rolle. Bruk et langt, unikt passord.
 
+## Tripletex-import
+
+Sett `TRIPLETEX_CONSUMER_TOKEN` og `TRIPLETEX_EMPLOYEE_TOKEN` (employee token opprettes i Tripletex under Selskap → Min profil → API-tilgang; consumer token får man fra Tripletex/integrasjonspartner). Da kan prosjekter importeres på to måter: i «Nytt prosjekt»-dialogen på nettsiden (søk og velg, feltene fylles ut automatisk), eller via Claude med MCP-verktøyene `tripletex_list_projects` og `tripletex_import_project`. Prosjektnr., navn, adresse og kunde (tiltakshaver) hentes fra Tripletex, og duplikatimport blokkeres.
+
 ## Koble til Claude
 
 Hver bruker har sin personlige API-nøkkel under «Innstillinger / Claude» på nettsiden – der ligger også ferdig konfigurasjon til å lime inn.

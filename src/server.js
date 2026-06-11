@@ -17,6 +17,7 @@ const {
 } = require('./db');
 const { setupAuthRoutes, requireAuth, requireApiKey, ssoConfigured } = require('./auth');
 const { mcpHandler } = require('./mcp');
+const { tripletexConfigured, listProjects: listTripletexProjects } = require('./tripletex');
 const { buildReportModel, REPORT_TITLES } = require('./report');
 const T = require('./templates');
 
@@ -58,7 +59,8 @@ app.get('/', auth, (req, res) => {
   res.render('dashboard', {
     user: req.user,
     projects: listProjects(),
-    T
+    T,
+    tripletex: tripletexConfigured
   });
 });
 
@@ -204,6 +206,19 @@ app.post('/api/projects/:id/documents', auth, (req, res) => {
   ).run(p.id, navn, type || '', mottatt_fra || '', mottatt_dato || new Date().toISOString().slice(0, 10), kommentar || '');
   log(p.id, req.user.name, 'web', 'Dokument registrert', navn);
   res.json({ ok: true });
+});
+
+// ---------- Tripletex ----------
+
+app.get('/api/tripletex/projects', auth, async (req, res) => {
+  if (!tripletexConfigured) {
+    return res.status(400).json({ error: 'Tripletex er ikke konfigurert (TRIPLETEX_CONSUMER_TOKEN / TRIPLETEX_EMPLOYEE_TOKEN).' });
+  }
+  try {
+    res.json(await listTripletexProjects(req.query.q || ''));
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
 });
 
 // ---------- Brukeradministrasjon ----------

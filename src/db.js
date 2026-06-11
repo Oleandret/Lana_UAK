@@ -111,6 +111,12 @@ try {
 } catch {
   /* kolonnen finnes allerede */
 }
+// Migrering: kobling til Tripletex-prosjekt
+try {
+  db.exec('ALTER TABLE projects ADD COLUMN tripletex_id INTEGER');
+} catch {
+  /* kolonnen finnes allerede */
+}
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -171,8 +177,8 @@ function createProject(data, actor, source) {
   const info = db
     .prepare(
       `INSERT INTO projects (project_no, name, address, gnr_bnr, kommune, tiltaksklasse,
-        tiltakshaver, ansvarlig_soker, kontrollomrader, notes, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        tiltakshaver, ansvarlig_soker, kontrollomrader, notes, created_by, tripletex_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       data.project_no || '',
@@ -185,7 +191,8 @@ function createProject(data, actor, source) {
       data.ansvarlig_soker || '',
       JSON.stringify(omrader),
       data.notes || '',
-      data.created_by || null
+      data.created_by || null,
+      data.tripletex_id || null
     );
   const projectId = info.lastInsertRowid;
 

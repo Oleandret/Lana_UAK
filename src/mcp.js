@@ -13,6 +13,7 @@ const {
   listProjects,
   nextAvvikNo
 } = require('./db');
+const { tripletexConfigured, listProjects: listTripletexProjects, getProjectById } = require('./tripletex');
 const {
   WORKFLOW_STAGES,
   KONTROLLOMRADER,
@@ -288,6 +289,68 @@ function buildServer(user) {
       return ok({
         melding: `Rapport "${type}" lagret. Åpne /projects/${project_id}/rapport/${type} på nettsiden for utskrift/PDF.`
       });
+    }
+  );
+
+  server.tool(
+    'tripletex_list_projects',
+    'Lister åpne prosjekter fra Tripletex (regnskaps-/prosjektsystemet til Bygg-Kon). Bruk dette for å finne prosjekter som skal importeres til UK-systemet.',
+    { query: z.string().optional().describe('Fritekstsøk på prosjektnr., navn eller kunde') },
+    async ({ query }) => {
+      if (!tripletexConfigured) return fail('Tripletex er ikke konfigurert på serveren.');
+      try {
+        return ok(await listTripletexProjects(query));
+      } catch (e) {
+        return fail(e.message);
+      }
+    }
+  );
+
+  server.tool(
+    'tripletex_import_project',
+    `Importerer et Tripletex-prosjekt som nytt UK-prosjekt. Prosjektnr., navn, adresse og tiltakshaver hentes fra Tripletex; sjekklister genereres fra maler. Gyldige kontrollområder: ${KONTROLLOMRADER.join(', ')}.`,
+    {
+      tripletex_id: z.number().int().describe('ID fra tripletex_list_projects'),
+      kontrollomrader: z.array(z.enum(KONTROLLOMRADER)).min(1),
+      tiltaksklasse: z.enum(['1', '2', '3']).default('2'),
+      gnr_bnr: z.string().optional(),
+      kommune: z.string().optional(),
+      ansvarlig_soker: z.string().optional(),
+      notes: z.string().optional()
+    },
+    async (args) => {
+      if (!tripletexConfigured) return fail('Tripletex er ikke konfigurert på serveren.');
+      try {
+        const tt = await getProjectById(args.tripletex_id);
+        if (!tt) return fail(`Fant ikke Tripletex-prosjekt ${args.tripletex_id}`);
+        const eksisterende = db
+          .prepare('SELECT id FROM projects WHERE tripletex_id = ?')
+          .get(args.tripletex_id);
+        if (eksisterende) {
+          return fail(`Tripletex-prosjektet er allerede importert som prosjekt ${eksisterende.id}.`);
+        }
+        const p = createProject(
+          {
+            project_no: tt.number,
+            name: tt.name,
+            address: tt.address,
+            tiltakshaver: tt.customer,
+            tripletex_id: tt.tripletex_id,
+            kontrollomrader: args.kontrollomrader,
+            tiltaksklasse: args.tiltaksklasse,
+            gnr_bnr: args.gnr_bnr,
+            kommune: args.kommune,
+            ansvarlig_soker: args.ansvarlig_soker,
+            notes: args.notes,
+            created_by: user.id
+          },
+          actor,
+          'claude'
+        );
+        return ok({ melding: 'Prosjekt importert fra Tripletex med sjekklister fra maler.', prosjekt: p });
+      } catch (e) {
+        return fail(e.message);
+      }
     }
   );
 

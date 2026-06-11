@@ -32,6 +32,18 @@
 <dialog id="newProject">
   <form method="dialog" class="dialog-form" id="npForm">
     <h2>Nytt UK-prosjekt</h2>
+    <% if (tripletex) { %>
+    <div class="tripletex-import">
+      <label>Importer fra Tripletex
+        <div class="import-row">
+          <input id="ttSearch" placeholder="Søk på prosjektnr., navn eller kunde">
+          <button type="button" class="btn" onclick="searchTripletex()">Søk</button>
+        </div>
+      </label>
+      <select id="ttResults" size="5" style="display:none" onchange="pickTripletex()"></select>
+      <input type="hidden" name="tripletex_id" id="ttId">
+    </div>
+    <% } %>
     <div class="grid2">
       <label>Prosjektnr. <input name="project_no" required placeholder="26 042"></label>
       <label>Tiltaksklasse
@@ -62,6 +74,29 @@
 </dialog>
 
 <script>
+let ttProjects = [];
+async function searchTripletex() {
+  const q = document.getElementById('ttSearch').value;
+  const r = await fetch('/api/tripletex/projects?q=' + encodeURIComponent(q));
+  const d = await r.json();
+  if (!r.ok) { alert(d.error || 'Tripletex-feil'); return; }
+  ttProjects = d;
+  const sel = document.getElementById('ttResults');
+  sel.innerHTML = d.length
+    ? d.map((p, i) => `<option value="${i}">${p.number} – ${p.name}${p.customer ? ' (' + p.customer + ')' : ''}</option>`).join('')
+    : '<option disabled>Ingen treff</option>';
+  sel.style.display = 'block';
+}
+function pickTripletex() {
+  const p = ttProjects[document.getElementById('ttResults').value];
+  if (!p) return;
+  const f = document.getElementById('npForm');
+  f.project_no.value = p.number;
+  f.name.value = p.name;
+  f.address.value = p.address || '';
+  f.tiltakshaver.value = p.customer || '';
+  document.getElementById('ttId').value = p.tripletex_id;
+}
 document.getElementById('npForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
