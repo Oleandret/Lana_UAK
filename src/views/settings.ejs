@@ -1,0 +1,54 @@
+<%- include('partials/head', { title: 'Innstillinger', user }) %>
+
+<h1>Innstillinger og Claude-tilkobling</h1>
+
+<section class="panel">
+  <h2>Din bruker</h2>
+  <p><%= user.name %> · <%= user.email %> · rolle: <%= user.role %></p>
+  <p class="muted small">Innlogging: <%= ssoConfigured ? 'Microsoft 365 SSO' : 'Utviklingsmodus (SSO ikke konfigurert)' %></p>
+</section>
+
+<section class="panel">
+  <h2>MCP-tilkobling for Claude</h2>
+  <p>Claude kobles til dette systemet som en MCP-server og kan da opprette prosjekter, fylle ut sjekklister,
+     registrere avvik og utarbeide rapportutkast – med full sporbarhet i aktivitetsloggen.</p>
+  <table class="data">
+    <tr><th>Endepunkt</th><td><code><%= baseUrl %>/mcp</code></td></tr>
+    <tr><th>Autentisering</th><td><code>Authorization: Bearer &lt;din API-nøkkel&gt;</code></td></tr>
+    <tr><th>Din API-nøkkel</th><td>
+      <code id="apikey"><%= user.api_key %></code>
+      <button class="linklike" onclick="navigator.clipboard.writeText(document.getElementById('apikey').textContent)">kopier</button>
+      <button class="linklike" onclick="regen()">generer ny</button>
+    </td></tr>
+  </table>
+  <p class="muted small">Nøkkelen er personlig. Genererer du ny, slutter den gamle å virke.</p>
+
+  <h3>Claude Desktop / Claude Code</h3>
+  <pre class="code">{
+  "mcpServers": {
+    "byggkon-uk": {
+      "command": "npx",
+      "args": [
+        "-y", "mcp-remote", "<%= baseUrl %>/mcp",
+        "--header", "Authorization: Bearer <%= user.api_key %>"
+      ]
+    }
+  }
+}</pre>
+  <p class="muted small">Claude Code: <code>claude mcp add byggkon-uk --transport http <%= baseUrl %>/mcp --header "Authorization: Bearer &lt;nøkkel&gt;"</code></p>
+
+  <h3>Verktøy Claude får</h3>
+  <p class="muted">uk_veiledning, list_projects, get_project, create_project, set_stage, update_checkpoint,
+     add_checkpoint, create_avvik, update_avvik, register_document, get_report_data, save_report, get_activity.</p>
+</section>
+
+<script>
+async function regen() {
+  if (!confirm('Generere ny API-nøkkel? Den gamle slutter å virke.')) return;
+  const r = await fetch('/api/me/apikey', { method: 'POST' });
+  const d = await r.json();
+  document.getElementById('apikey').textContent = d.api_key;
+  alert('Ny nøkkel generert. Oppdater Claude-konfigurasjonen.');
+}
+</script>
+<%- include('partials/foot') %>

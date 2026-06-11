@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+  <title><%= model.title %> – <%= p.project_no %></title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="report">
+  <div class="no-print toolbar">
+    <a href="/projects/<%= p.id %>">&larr; Tilbake til prosjektet</a>
+    <button class="btn primary" onclick="window.print()">Skriv ut / lagre som PDF</button>
+  </div>
+
+  <header class="report-head">
+    <div class="brand big">BYGG<span>KON</span></div>
+    <div>
+      <h1><%= model.title %></h1>
+      <p class="muted">Uavhengig kontroll iht. pbl. § 24-1 og SAK10 § 14-7</p>
+    </div>
+  </header>
+
+  <table class="data report-info">
+    <tr><th>Prosjekt</th><td><%= p.project_no %> – <%= p.name %></td><th>Tiltaksklasse</th><td><%= p.tiltaksklasse %></td></tr>
+    <tr><th>Adresse</th><td><%= p.address || '–' %></td><th>Gnr./Bnr.</th><td><%= p.gnr_bnr || '–' %></td></tr>
+    <tr><th>Kommune</th><td><%= p.kommune || '–' %></td><th>Tiltakshaver</th><td><%= p.tiltakshaver || '–' %></td></tr>
+    <tr><th>Ansvarlig søker</th><td><%= p.ansvarlig_soker || '–' %></td><th>Dato</th><td><%= new Date().toISOString().slice(0,10) %></td></tr>
+    <tr><th>Kontrollområder</th><td colspan="3"><%= p.kontrollomrader.join(', ') %></td></tr>
+  </table>
+
+  <% if (model.sections.length === 0) { %>
+    <p class="muted"><em>Ingen rapporttekst er utarbeidet ennå. Be Claude bruke verktøyene get_report_data og
+    save_report, eller skriv tekst via MCP. Tabellene under genereres automatisk fra kontrolldataene.</em></p>
+  <% } %>
+
+  <% for (const s of model.sections) { %>
+    <section class="report-section">
+      <h2><%= s.title %></h2>
+      <div class="report-text"><%- s.text.includes('<') ? s.text : '<p>' + s.text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>') + '</p>' %></div>
+    </section>
+  <% } %>
+
+  <section class="report-section">
+    <h2>Kontrollstatus per kontrollområde</h2>
+    <% for (const o of model.perOmrade) { %>
+      <h3><%= o.omrade %> <span class="muted small">(<%= o.ok %> OK, <%= o.avvik %> avvik, <%= o.ikkeRelevant %> ikke relevant, <%= o.ikkeKontrollert %> ikke kontrollert)</span></h3>
+      <table class="data small">
+        <tr><th>Fase</th><th>Sjekkpunkt</th><th>Status</th><th>Kommentar</th></tr>
+        <% for (const c of o.punkter) { %>
+          <tr><td><%= c.fase %></td><td><%= c.text %></td><td><%= c.status %></td><td><%= c.comment %></td></tr>
+        <% } %>
+      </table>
+    <% } %>
+  </section>
+
+  <section class="report-section">
+    <h2>Avviksoversikt</h2>
+    <% if (p.avvik.length === 0) { %><p>Ingen avvik er registrert i kontrollen.</p><% } else { %>
+    <table class="data small">
+      <tr><th>Nr.</th><th>Område</th><th>Beskrivelse</th><th>Status</th><th>Varslet foretak</th><th>Varslet kommune</th><th>Lukket</th></tr>
+      <% for (const a of p.avvik) { %>
+        <tr><td><%= a.nummer %></td><td><%= a.omrade %></td><td><%= a.beskrivelse %></td><td><%= a.status %></td>
+            <td><%= a.varslet_foretak_dato || '–' %></td><td><%= a.varslet_kommune_dato || '–' %></td><td><%= a.lukket_dato || '–' %></td></tr>
+      <% } %>
+    </table>
+    <% if (model.apneAvvik.length > 0) { %>
+      <p class="warn"><strong>NB:</strong> <%= model.apneAvvik.length %> avvik er ikke lukket. Kommunen skal være varslet om åpne avvik før sluttrapporten ferdigstilles.</p>
+    <% } %>
+    <% } %>
+  </section>
+
+  <section class="report-section">
+    <h2>Mottatt dokumentasjon</h2>
+    <% if (p.documents.length === 0) { %><p class="muted">Ingen dokumenter registrert.</p><% } else { %>
+    <table class="data small">
+      <tr><th>Dokument</th><th>Type</th><th>Mottatt fra</th><th>Dato</th></tr>
+      <% for (const d of p.documents) { %>
+        <tr><td><%= d.navn %></td><td><%= d.type %></td><td><%= d.mottatt_fra %></td><td><%= d.mottatt_dato %></td></tr>
+      <% } %>
+    </table>
+    <% } %>
+  </section>
+
+  <section class="report-sign">
+    <table class="sign-table">
+      <tr><td>Dato / sted</td><td>Ansvarlig kontrollerende (signatur)</td></tr>
+      <tr><td class="line"></td><td class="line"></td></tr>
+    </table>
+  </section>
+
+  <footer class="report-foot">
+    Bygg-Kon AS · Travbaneveien 3, 4031 Stavanger · post@byggkon.no · Org.nr. NO 943 885 397 MVA
+    <% if (model.updatedAt) { %><br><span class="muted small">Rapporttekst sist oppdatert <%= model.updatedAt %> av <%= model.createdBy %></span><% } %>
+  </footer>
+</body>
+</html>

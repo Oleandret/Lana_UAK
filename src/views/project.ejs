@@ -1,0 +1,174 @@
+<%- include('partials/head', { title: p.project_no + ' ' + p.name, user }) %>
+
+<div class="page-head">
+  <div>
+    <p class="crumbs"><a href="/">Prosjekter</a> / <%= p.project_no %></p>
+    <h1><%= p.name %></h1>
+    <p class="muted">
+      <%= p.address %><%= p.address ? ' · ' : '' %><%= p.kommune %> · Gnr./Bnr. <%= p.gnr_bnr || '–' %> ·
+      Tkl. <%= p.tiltaksklasse %> · Tiltakshaver: <%= p.tiltakshaver || '–' %> · Ansv. søker: <%= p.ansvarlig_soker || '–' %>
+    </p>
+  </div>
+  <div class="head-actions">
+    <% for (const [type, title] of Object.entries(REPORT_TITLES)) { %>
+      <a class="btn" target="_blank" href="/projects/<%= p.id %>/rapport/<%= type %>"><%= title.split(' – ')[0] %></a>
+    <% } %>
+  </div>
+</div>
+
+<!-- Arbeidsflyt -->
+<section class="panel">
+  <h2>Arbeidsflyt (Byggkons UK-rutine)</h2>
+  <div class="stages">
+    <% for (const s of T.WORKFLOW_STAGES) { %>
+      <button class="stage <%= s.nr < p.stage ? 'done' : s.nr === p.stage ? 'current' : '' %>"
+              title="<%= s.beskrivelse %>" onclick="setStage(<%= s.nr %>)">
+        <span class="nr"><%= s.nr %></span> <%= s.navn %>
+      </button>
+    <% } %>
+  </div>
+</section>
+
+<!-- Sjekklister -->
+<section class="panel">
+  <h2>Sjekklister</h2>
+  <% for (const omrade of p.kontrollomrader) {
+       const cps = p.checkpoints.filter(c => c.omrade === omrade);
+       if (cps.length === 0) continue; %>
+    <details open>
+      <summary><strong><%= omrade %></strong>
+        <span class="muted small"><%= cps.filter(c => c.status !== 'Ikke kontrollert').length %>/<%= cps.length %> kontrollert</span>
+      </summary>
+      <% for (const fase of ['Prosjektering', 'Utførelse']) {
+           const fcps = cps.filter(c => c.fase === fase);
+           if (fcps.length === 0) continue; %>
+        <h3 class="fase"><%= fase %></h3>
+        <table class="checklist">
+          <% for (const c of fcps) { %>
+            <tr data-id="<%= c.id %>">
+              <td class="cp-text"><%= c.text %>
+                <% if (c.comment) { %><div class="cp-comment"><%= c.comment %></div><% } %>
+                <% if (c.checked_by) { %><div class="cp-sign muted small"><%= c.checked_by %> · <%= c.checked_at %></div><% } %>
+              </td>
+              <td class="cp-status">
+                <select onchange="setCheckpoint(<%= c.id %>, this.value)">
+                  <% for (const s of T.CHECKPOINT_STATUSES) { %>
+                    <option <%= c.status === s ? 'selected' : '' %>><%= s %></option>
+                  <% } %>
+                </select>
+                <button class="linklike small" onclick="commentCheckpoint(<%= c.id %>)">kommentar</button>
+              </td>
+            </tr>
+          <% } %>
+        </table>
+      <% } %>
+    </details>
+  <% } %>
+  <button class="linklike" onclick="addCheckpoint()">+ Legg til sjekkpunkt</button>
+</section>
+
+<!-- Avvik -->
+<section class="panel">
+  <div class="panel-head">
+    <h2>Avvik</h2>
+    <button class="btn" onclick="newAvvik()">+ Registrer avvik</button>
+  </div>
+  <% if (p.avvik.length === 0) { %><p class="muted">Ingen avvik registrert.</p><% } else { %>
+  <table class="data">
+    <tr><th>Nr.</th><th>Område</th><th>Beskrivelse</th><th>Alvorlighet</th><th>Status</th><th>Datoer</th><th></th></tr>
+    <% for (const a of p.avvik) { %>
+      <tr>
+        <td><%= a.nummer %></td>
+        <td><%= a.omrade %></td>
+        <td><%= a.beskrivelse %><% if (a.lukket_dokumentasjon) { %><div class="muted small">Lukking: <%= a.lukket_dokumentasjon %></div><% } %></td>
+        <td><%= a.alvorlighet %></td>
+        <td><span class="badge <%= a.status === 'Lukket' ? 'green' : a.status === 'Åpent' ? 'red' : 'yellow' %>"><%= a.status %></span></td>
+        <td class="small muted">
+          <% if (a.varslet_foretak_dato) { %>Foretak: <%= a.varslet_foretak_dato %><br><% } %>
+          <% if (a.varslet_kommune_dato) { %>Kommune: <%= a.varslet_kommune_dato %><br><% } %>
+          <% if (a.lukket_dato) { %>Lukket: <%= a.lukket_dato %><% } %>
+        </td>
+        <td>
+          <select onchange="setAvvik(<%= a.id %>, this.value)">
+            <option value="">Endre status…</option>
+            <% for (const s of T.AVVIK_STATUSES) { %><option><%= s %></option><% } %>
+          </select>
+        </td>
+      </tr>
+    <% } %>
+  </table>
+  <% } %>
+</section>
+
+<!-- Dokumenter -->
+<section class="panel">
+  <div class="panel-head">
+    <h2>Mottatt dokumentasjon</h2>
+    <button class="btn" onclick="newDocument()">+ Registrer dokument</button>
+  </div>
+  <% if (p.documents.length === 0) { %><p class="muted">Ingen dokumenter registrert.</p><% } else { %>
+  <table class="data">
+    <tr><th>Dokument</th><th>Type</th><th>Mottatt fra</th><th>Dato</th><th>Kommentar</th></tr>
+    <% for (const d of p.documents) { %>
+      <tr><td><%= d.navn %></td><td><%= d.type %></td><td><%= d.mottatt_fra %></td><td><%= d.mottatt_dato %></td><td><%= d.kommentar %></td></tr>
+    <% } %>
+  </table>
+  <% } %>
+</section>
+
+<!-- Aktivitet -->
+<section class="panel">
+  <h2>Aktivitetslogg</h2>
+  <table class="data small">
+    <% for (const a of activity) { %>
+      <tr>
+        <td class="muted nowrap"><%= a.ts %></td>
+        <td><span class="badge <%= a.source === 'claude' ? 'purple' : 'gray' %>"><%= a.source === 'claude' ? 'Claude' : 'Web' %></span></td>
+        <td><%= a.actor %></td>
+        <td><strong><%= a.action %></strong> <%= a.detail %></td>
+      </tr>
+    <% } %>
+  </table>
+</section>
+
+<script>
+const PID = <%= p.id %>;
+async function api(url, method, body) {
+  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) { alert((await r.json()).error || 'Noe gikk galt'); return false; }
+  return true;
+}
+async function setStage(n) { if (await api('/api/projects/' + PID, 'PATCH', { stage: n })) location.reload(); }
+async function setCheckpoint(id, status) { await api('/api/checkpoints/' + id, 'PATCH', { status }); location.reload(); }
+async function commentCheckpoint(id) {
+  const comment = prompt('Kontrollkommentar / dokumenthenvisning:');
+  if (comment !== null && await api('/api/checkpoints/' + id, 'PATCH', { comment })) location.reload();
+}
+async function addCheckpoint() {
+  const omrade = prompt('Kontrollområde:\n<%= p.kontrollomrader.join('\\n') %>');
+  if (!omrade) return;
+  const fase = confirm('OK = Prosjektering, Avbryt = Utførelse') ? 'Prosjektering' : 'Utførelse';
+  const text = prompt('Hva skal kontrolleres?');
+  if (text && await api('/api/projects/' + PID + '/checkpoints', 'POST', { omrade, fase, text })) location.reload();
+}
+async function newAvvik() {
+  const beskrivelse = prompt('Beskriv avviket:');
+  if (!beskrivelse) return;
+  const omrade = prompt('Kontrollområde (valgfritt):') || '';
+  if (await api('/api/projects/' + PID + '/avvik', 'POST', { beskrivelse, omrade })) location.reload();
+}
+async function setAvvik(id, status) {
+  if (!status) return;
+  const body = { status };
+  if (status === 'Lukket') body.lukket_dokumentasjon = prompt('Dokumentasjon på lukking:') || '';
+  if (await api('/api/avvik/' + id, 'PATCH', body)) location.reload();
+}
+async function newDocument() {
+  const navn = prompt('Dokumentnavn:');
+  if (!navn) return;
+  const type = prompt('Type (Tegning/Beregning/KS-dok/Rapport):') || '';
+  const mottatt_fra = prompt('Mottatt fra:') || '';
+  if (await api('/api/projects/' + PID + '/documents', 'POST', { navn, type, mottatt_fra })) location.reload();
+}
+</script>
+<%- include('partials/foot') %>

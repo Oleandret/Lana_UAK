@@ -1,0 +1,21 @@
+<%- include('partials/head', { title: 'Logg inn', user: null }) %>
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="brand big">BYGG<span>KON</span></div>
+    <h1>Uavhengig kontroll</h1>
+    <p class="muted">Prosjektstyring og AI-assistert kontroll iht. SAK10 § 14-7</p>
+    <% if (error) { %><div class="alert"><%= error %></div><% } %>
+    <% if (sso) { %>
+      <a class="btn primary block" href="/auth/microsoft">Logg inn med Microsoft 365</a>
+      <p class="muted small">Bruk din Byggkon-konto.</p>
+    <% } else { %>
+      <form method="post" action="/auth/dev">
+        <label>E-post <input type="email" name="email" required placeholder="navn@byggkon.no"></label>
+        <label>Navn <input type="text" name="name" placeholder="Fullt navn"></label>
+        <button class="btn primary block">Logg inn (utviklingsmodus)</button>
+      </form>
+      <p class="muted small">Microsoft 365 SSO aktiveres ved å sette AZURE_TENANT_ID, AZURE_CLIENT_ID og AZURE_CLIENT_SECRET.</p>
+    <% } %>
+  </div>
+</div>
+<%- include('partials/foot') %>

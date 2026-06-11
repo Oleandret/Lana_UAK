@@ -1,0 +1,78 @@
+<%- include('partials/head', { title: 'Prosjekter', user }) %>
+
+<div class="page-head">
+  <h1>UK-prosjekter</h1>
+  <button class="btn primary" onclick="document.getElementById('newProject').showModal()">+ Nytt prosjekt</button>
+</div>
+
+<% if (projects.length === 0) { %>
+  <div class="empty">Ingen prosjekter ennå. Opprett det første – sjekklister genereres automatisk fra Byggkons maler.</div>
+<% } %>
+
+<div class="cards">
+  <% for (const p of projects) { %>
+    <a class="card project" href="/projects/<%= p.id %>">
+      <div class="card-top">
+        <span class="pno"><%= p.project_no %></span>
+        <span class="badge <%= p.status === 'Aktiv' ? 'green' : 'gray' %>"><%= p.status %></span>
+      </div>
+      <h2><%= p.name %></h2>
+      <p class="muted"><%= p.kommune %><%= p.kommune && p.address ? ' · ' : '' %><%= p.address %> · Tkl. <%= p.tiltaksklasse %></p>
+      <p class="tags"><% for (const o of p.kontrollomrader) { %><span class="tag"><%= o %></span><% } %></p>
+      <div class="meta">
+        <span>Steg <%= p.stage %>/6: <%= T.WORKFLOW_STAGES[p.stage - 1].navn %></span>
+        <span><%= p.kontrollert %>/<%= p.punkter %> punkter kontrollert</span>
+        <span class="<%= p.apne_avvik > 0 ? 'warn' : '' %>"><%= p.apne_avvik %> åpne avvik</span>
+      </div>
+      <div class="progress"><div style="width: <%= p.punkter ? Math.round(100 * p.kontrollert / p.punkter) : 0 %>%"></div></div>
+    </a>
+  <% } %>
+</div>
+
+<dialog id="newProject">
+  <form method="dialog" class="dialog-form" id="npForm">
+    <h2>Nytt UK-prosjekt</h2>
+    <div class="grid2">
+      <label>Prosjektnr. <input name="project_no" required placeholder="26 042"></label>
+      <label>Tiltaksklasse
+        <select name="tiltaksklasse"><option>1</option><option selected>2</option><option>3</option></select>
+      </label>
+    </div>
+    <label>Prosjektnavn <input name="name" required placeholder="Tiltakshaver, byggets navn"></label>
+    <div class="grid2">
+      <label>Adresse <input name="address"></label>
+      <label>Kommune <input name="kommune"></label>
+    </div>
+    <div class="grid2">
+      <label>Gnr./Bnr. <input name="gnr_bnr"></label>
+      <label>Tiltakshaver <input name="tiltakshaver"></label>
+    </div>
+    <label>Ansvarlig søker <input name="ansvarlig_soker" placeholder="Foretak og kontaktperson"></label>
+    <fieldset>
+      <legend>Kontrollområder (sjekklister genereres automatisk)</legend>
+      <% for (const o of T.KONTROLLOMRADER) { %>
+        <label class="check"><input type="checkbox" name="kontrollomrader" value="<%= o %>"> <%= o %></label>
+      <% } %>
+    </fieldset>
+    <div class="dialog-actions">
+      <button type="button" class="btn" onclick="document.getElementById('newProject').close()">Avbryt</button>
+      <button type="submit" class="btn primary">Opprett prosjekt</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+document.getElementById('npForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const data = Object.fromEntries(new FormData(f).entries());
+  data.kontrollomrader = [...f.querySelectorAll('input[name=kontrollomrader]:checked')].map(c => c.value);
+  if (data.kontrollomrader.length === 0) { alert('Velg minst ett kontrollområde.'); return; }
+  const r = await fetch('/api/projects', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  });
+  if (r.ok) { const p = await r.json(); location.href = '/projects/' + p.id; }
+  else { alert((await r.json()).error || 'Noe gikk galt'); }
+});
+</script>
+<%- include('partials/foot') %>
