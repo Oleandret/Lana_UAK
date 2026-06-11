@@ -15,7 +15,11 @@ npm install
 npm start          # http://localhost:3000
 ```
 
-Uten Azure-variabler er utviklings-innlogging aktiv (kun e-post). Første bruker som logger inn blir admin.
+Innlogging fungerer uten Microsoft: sett `ADMIN_PASSWORD`, logg inn som administrator, og opprett brukere med e-post/passord under Innstillinger. Microsoft 365 SSO er valgfritt tillegg.
+
+```bash
+ADMIN_PASSWORD=dittpassord npm start
+```
 
 ## Deploy på Railway
 

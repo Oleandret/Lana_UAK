@@ -5,8 +5,33 @@
 <section class="panel">
   <h2>Din bruker</h2>
   <p><%= user.name %> · <%= user.email %> · rolle: <%= user.role %></p>
-  <p class="muted small">Innlogging: <%= ssoConfigured ? 'Microsoft 365 SSO' : 'Utviklingsmodus (SSO ikke konfigurert)' %></p>
+  <p class="muted small">Innlogging: e-post/passord<%= ssoConfigured ? ' eller Microsoft 365 SSO' : '' %></p>
+  <button class="linklike" onclick="changeMyPassword()">Endre mitt passord</button>
 </section>
+
+<% if (user.role === 'admin') { %>
+<section class="panel">
+  <h2>Brukere</h2>
+  <table class="data">
+    <tr><th>E-post</th><th>Navn</th><th>Rolle</th><th>Passord</th><th></th></tr>
+    <% for (const u of users) { %>
+      <tr>
+        <td><%= u.email %></td><td><%= u.name %></td><td><%= u.role %></td>
+        <td><%= u.has_password ? 'Satt' : '–' %></td>
+        <td><button class="linklike small" onclick="resetPassword(<%= u.id %>, '<%= u.email %>')">tilbakestill passord</button></td>
+      </tr>
+    <% } %>
+  </table>
+  <h3>Opprett bruker</h3>
+  <form id="newUser" class="grid2" style="max-width:600px">
+    <label>E-post <input type="email" name="email" required></label>
+    <label>Navn <input name="name"></label>
+    <label>Passord (minst 8 tegn) <input type="password" name="password" required minlength="8"></label>
+    <label>Rolle <select name="role"><option value="kontrollor">Kontrollør</option><option value="admin">Admin</option></select></label>
+    <button class="btn primary">Opprett bruker</button>
+  </form>
+</section>
+<% } %>
 
 <section class="panel">
   <h2>MCP-tilkobling for Claude</h2>
@@ -43,6 +68,27 @@
 </section>
 
 <script>
+async function post(url, body) {
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { alert(d.error || 'Noe gikk galt'); return false; }
+  return true;
+}
+async function changeMyPassword() {
+  const current_password = prompt('Nåværende passord (tomt hvis du ikke har satt noe):') ?? '';
+  const password = prompt('Nytt passord (minst 8 tegn):');
+  if (password && await post('/api/me/password', { current_password, password })) alert('Passord endret.');
+}
+async function resetPassword(id, email) {
+  const password = prompt('Nytt passord for ' + email + ' (minst 8 tegn):');
+  if (password && await post('/api/users/' + id + '/password', { password })) alert('Passord tilbakestilt.');
+}
+const nu = document.getElementById('newUser');
+if (nu) nu.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(nu).entries());
+  if (await post('/api/users', data)) location.reload();
+});
 async function regen() {
   if (!confirm('Generere ny API-nøkkel? Den gamle slutter å virke.')) return;
   const r = await fetch('/api/me/apikey', { method: 'POST' });

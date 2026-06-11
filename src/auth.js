@@ -3,7 +3,7 @@
 
 const crypto = require('crypto');
 const { Issuer, generators } = require('openid-client');
-const { getOrCreateUser, userByApiKey, db } = require('./db');
+const { getOrCreateUser, userByApiKey, verifyPassword, db } = require('./db');
 
 const TENANT = process.env.AZURE_TENANT_ID || '';
 const CLIENT_ID = process.env.AZURE_CLIENT_ID || '';
@@ -113,13 +113,12 @@ function setupAuthRoutes(app) {
     }
   });
 
-  // Utvikler-innlogging når SSO ikke er konfigurert (f.eks. lokal testing).
-  app.post('/auth/dev', (req, res) => {
-    if (ssoConfigured) return res.status(403).send('Dev-innlogging er deaktivert når SSO er konfigurert.');
-    const email = (req.body.email || '').toLowerCase().trim();
-    const name = (req.body.name || '').trim() || email;
-    if (!email.includes('@')) return res.redirect('/login?error=Ugyldig e-post');
-    const user = getOrCreateUser(email, name);
+  // Lokal innlogging med e-post + passord (brukere opprettes av admin).
+  app.post('/auth/local', (req, res) => {
+    const user = verifyPassword(req.body.email || '', req.body.password || '');
+    if (!user) {
+      return res.redirect('/login?error=' + encodeURIComponent('Feil e-post eller passord.'));
+    }
     req.session.userId = user.id;
     res.redirect('/');
   });

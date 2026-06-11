@@ -105,6 +105,32 @@ CREATE TABLE IF NOT EXISTS activity (
 );
 `);
 
+// Migrering: passordkolonne for lokal innlogging
+try {
+  db.exec("ALTER TABLE users ADD COLUMN password_hash TEXT DEFAULT ''");
+} catch {
+  /* kolonnen finnes allerede */
+}
+
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+function setPassword(userId, password) {
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(password), userId);
+}
+
+function verifyPassword(email, password) {
+  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(String(email).toLowerCase().trim());
+  if (!user || !user.password_hash) return null;
+  const [salt, stored] = user.password_hash.split(':');
+  const hash = crypto.scryptSync(password, salt, 64);
+  const ok = crypto.timingSafeEqual(hash, Buffer.from(stored, 'hex'));
+  return ok ? user : null;
+}
+
 function newApiKey() {
   return 'bk_' + crypto.randomBytes(24).toString('hex');
 }
@@ -229,6 +255,8 @@ module.exports = {
   getOrCreateUser,
   userByApiKey,
   regenerateApiKey,
+  setPassword,
+  verifyPassword,
   log,
   createProject,
   getProject,

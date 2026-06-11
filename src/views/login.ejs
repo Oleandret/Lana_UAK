@@ -1,28 +1,33 @@
 <%- include('partials/head', { title: 'Logg inn', user: null }) %>
 <div class="login-wrap">
   <div class="login-card">
-    <div class="brand big">BYGG<span>KON</span></div>
+    <div class="brand big">BYGG-KON</div>
     <h1>Uavhengig kontroll</h1>
     <p class="muted">Prosjektstyring og AI-assistert kontroll iht. SAK10 § 14-7</p>
     <% if (error) { %><div class="alert"><%= error %></div><% } %>
+
+    <form method="post" action="/auth/local">
+      <label>E-post <input type="email" name="email" required placeholder="navn@byggkon.no"></label>
+      <label>Passord <input type="password" name="password" required></label>
+      <button class="btn primary block">Logg inn</button>
+    </form>
+
     <% if (sso) { %>
-      <a class="btn primary block" href="/auth/microsoft">Logg inn med Microsoft 365</a>
-      <p class="muted small">Bruk din Byggkon-konto.</p>
+      <div class="divider">eller</div>
+      <a class="btn block" href="/auth/microsoft">Logg inn med Microsoft 365</a>
     <% } %>
+
     <% if (adminLogin) { %>
-      <form method="post" action="/auth/admin">
-        <label>Admin-passord <input type="password" name="password" required></label>
-        <button class="btn <%= sso ? '' : 'primary' %> block">Logg inn som administrator</button>
-      </form>
+      <details class="admin-login">
+        <summary>Administrator-innlogging</summary>
+        <form method="post" action="/auth/admin">
+          <label>Admin-passord <input type="password" name="password" required></label>
+          <button class="btn block">Logg inn som administrator</button>
+        </form>
+      </details>
     <% } %>
-    <% if (!sso) { %>
-      <form method="post" action="/auth/dev">
-        <label>E-post <input type="email" name="email" required placeholder="navn@byggkon.no"></label>
-        <label>Navn <input type="text" name="name" placeholder="Fullt navn"></label>
-        <button class="btn primary block">Logg inn (utviklingsmodus)</button>
-      </form>
-      <p class="muted small">Microsoft 365 SSO aktiveres ved å sette AZURE_TENANT_ID, AZURE_CLIENT_ID og AZURE_CLIENT_SECRET.</p>
-    <% } %>
+
+    <p class="muted small">Brukerkontoer opprettes av administrator under Innstillinger.</p>
   </div>
 </div>
 <%- include('partials/foot') %>

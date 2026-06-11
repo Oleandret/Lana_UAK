@@ -10,7 +10,10 @@ const {
   getProject,
   listProjects,
   nextAvvikNo,
-  regenerateApiKey
+  regenerateApiKey,
+  getOrCreateUser,
+  setPassword,
+  verifyPassword
 } = require('./db');
 const { setupAuthRoutes, requireAuth, requireApiKey, ssoConfigured } = require('./auth');
 const { mcpHandler } = require('./mcp');
@@ -78,7 +81,11 @@ app.get('/projects/:id/rapport/:type', auth, (req, res) => {
 
 app.get('/settings', auth, (req, res) => {
   const baseUrl = (process.env.BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
-  res.render('settings', { user: req.user, baseUrl, ssoConfigured });
+  const users =
+    req.user.role === 'admin'
+      ? db.prepare("SELECT id, email, name, role, password_hash != '' AS has_password FROM users ORDER BY id").all()
+      : [];
+  res.render('settings', { user: req.user, baseUrl, ssoConfigured, users });
 });
 
 // ---------- JSON-API for nettsiden ----------
@@ -199,6 +206,45 @@ app.post('/api/projects/:id/documents', auth, (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------- Brukeradministrasjon ----------
+
+const requireAdmin = (req, res, next) =>
+  req.user.role === 'admin' ? next() : res.status(403).json({ error: 'Krever admin-rolle' });
+
+app.post('/api/users', auth, requireAdmin, (req, res) => {
+  const { email, name, password, role } = req.body;
+  if (!email || !email.includes('@') || !password || password.length < 8) {
+    return res.status(400).json({ error: 'Gyldig e-post og passord (minst 8 tegn) er påkrevd.' });
+  }
+  const u = getOrCreateUser(email, name || email);
+  setPassword(u.id, password);
+  if (role === 'admin' || role === 'kontrollor') {
+    db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, u.id);
+  }
+  log(null, req.user.name, 'web', 'Bruker opprettet/oppdatert', email);
+  res.json({ ok: true, id: u.id });
+});
+
+app.post('/api/users/:id/password', auth, requireAdmin, (req, res) => {
+  const { password } = req.body;
+  const target = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(req.params.id));
+  if (!target) return res.status(404).json({ error: 'Fant ikke brukeren' });
+  if (!password || password.length < 8) return res.status(400).json({ error: 'Passord må ha minst 8 tegn.' });
+  setPassword(target.id, password);
+  log(null, req.user.name, 'web', 'Passord tilbakestilt', target.email);
+  res.json({ ok: true });
+});
+
+app.post('/api/me/password', auth, (req, res) => {
+  const { current_password, password } = req.body;
+  if (!password || password.length < 8) return res.status(400).json({ error: 'Passord må ha minst 8 tegn.' });
+  if (req.user.password_hash && !verifyPassword(req.user.email, current_password || '')) {
+    return res.status(400).json({ error: 'Feil nåværende passord.' });
+  }
+  setPassword(req.user.id, password);
+  res.json({ ok: true });
+});
+
 app.post('/api/me/apikey', auth, (req, res) => {
   const key = regenerateApiKey(req.user.id);
   res.json({ api_key: key });
@@ -214,5 +260,5 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Byggkon UK kjører på port ${PORT}`);
-  console.log(`SSO: ${ssoConfigured ? 'Microsoft 365 aktivert' : 'IKKE konfigurert – dev-innlogging aktiv'}`);
+  console.log(`Innlogging: e-post/passord${ssoConfigured ? ' + Microsoft 365 SSO' : ''}${process.env.ADMIN_PASSWORD ? ' + admin-passord' : ''}`);
 });
